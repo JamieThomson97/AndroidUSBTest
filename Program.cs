@@ -6,7 +6,8 @@ namespace AndroidUSBTest
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Console.WriteLine("Testing Android");
+            AdbAndroidDevice.GetAdbAndroidDevices();
         }
     }
 }
