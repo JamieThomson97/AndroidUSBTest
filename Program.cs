@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using System.Threading;
 
 namespace AndroidUSBTest
 {
@@ -6,8 +10,30 @@ namespace AndroidUSBTest
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Testing Android");
-            AdbAndroidDevice.GetAdbAndroidDevices();
+            int iteration = 0;
+            while (true)
+            {
+                iteration++;
+                Debug.WriteLine("Testing Android: " + iteration);
+                var devices = AdbAndroidDevice.GetAdbAndroidDevices();
+                if (devices.Any())
+                {
+                    Debug.WriteLine("Connected");
+                    var device = devices.First();
+
+                    int messageIteration = 0;
+
+                    while (true)
+                    {
+                        messageIteration++;
+                        byte[] bytes = Encoding.ASCII.GetBytes("Test message to Android device: " + messageIteration);
+                        var result = device.Send(bytes, 5 * 1000).Result;
+                        Debug.WriteLine("Sent message " + messageIteration);
+                        Thread.Sleep(2 * 1000);
+                    }
+                }
+                Thread.Sleep(2 * 1000);
+            }
         }
     }
 }

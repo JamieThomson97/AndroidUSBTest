@@ -1,79 +1,76 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace AndroidUSBTest
 {
-    public class AdbAndroidDevice
+    public class AdbAndroidDevice : IAndroidDevice
     {
-        private static Int32 Port = 6100;
-        private static  IPAddress LocalAddr = IPAddress.Parse("192.168.0.15");
-        private static TcpListener Server = new TcpListener(LocalAddr, Port);
+        private const int Port = 6000;
+        private static readonly IPAddress LocalAddr = IPAddress.Parse("127.0.0.1");
+        private static readonly TcpListener Server = new TcpListener(LocalAddr, Port);
 
         public static List<IAndroidDevice> GetAdbAndroidDevices()
         {
-            // ToDo : nee to add a try/catch/finally
+            // ToDo: What if multiple Android devices
+            // We have to tell the phone to use another port?
+
             try
-            {   // https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.tcplistener?view=net-5.0
-                // Start listening for client requests.
+            {
                 Server.Start();
+                Debug.WriteLine("Waiting for ADB connection");
 
                 // Buffer for reading data
-                byte[] bytes = new byte[256];
-                string data = null;
+                
                 List<IAndroidDevice> devices = new List<IAndroidDevice>();
-                Console.WriteLine($"Waiting for connection on Ip: {LocalAddr} and Port: {Port}");
-                var client = Server.AcceptTcpClient();
-                Console.WriteLine("Made connection, waiting for message");
-                int iteration = 0;
+                TcpClient client = Server.AcceptTcpClient();
+                Debug.WriteLine("Made ADB connection");
 
-                bool lookForDevices = true;
-                // Enter the listening loop.
-                while(lookForDevices)
-                {
-                    iteration++;
-                    data = null;
-                    // Get a stream object for reading and writing
-                    NetworkStream stream = client.GetStream();
-                    int i;
+                byte[] bytes = ReceiveBytes(client);
 
-                    // Loop to receive all the data sent by the client 
-                    // this should use the send method
-                    while((i = stream.Read(bytes, 0, bytes.Length)) != 0) 
-                    {
-                        // some logic here to verify connection
-                        // Translate data bytes to a ASCII string.
-                        data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                        Console.WriteLine("Received: {0}", data);
-                    }
-                    bool isCorrect = false;
-                    /*if(isCorrect)
-                        devices.Add(new AdbAndroidDevice(client));*/
-                    
-                    Console.WriteLine("Did not receive anything. Iteration: " + iteration);
-                    Thread.Sleep(2 * 1000);
-                }
+                bool isCamoDevice = false;
+                var data = Encoding.ASCII.GetString(bytes, 0, bytes.Length);
+                Debug.WriteLine(data);
+                
+                string howDoWeKnow = "idk";
+                if (data == howDoWeKnow || true)
+                    isCamoDevice = true;
+                if (isCamoDevice)
+                    devices.Add(new AdbAndroidDevice(client, new List<string>{"A" , "D" , "B"}));
+
                 return devices;
             }
-            catch(SocketException e)
+            catch (SocketException e)
             {
-                Console.WriteLine("SocketException: {0}", e);
+                // ToDo: Do something here?
                 throw;
             }
             finally
             {
-                // Stop listening for new clients.
-                Server.Stop();
+                // Server.Stop(); // When should I do this?
             }
         }
 
-        private TcpClient Client;
+        private static byte[] ReceiveBytes(TcpClient client)
+        {
+            byte[] bytes = new byte[256];
+            NetworkStream stream = client.GetStream();
+            stream.Read(bytes, 0, bytes.Length);
+            
+            return bytes;
+        }
 
-        public AdbAndroidDevice(TcpClient client)
+        private readonly TcpClient Client;
+
+        private AdbAndroidDevice(TcpClient client, List<string> hardWareIds)
         {
             Client = client;
+            HardwareIds = hardWareIds;
         }
         public void Configure(IAndroidDevice device)
         {
@@ -87,28 +84,24 @@ namespace AndroidUSBTest
 
         public (byte[] bytes, int errorCode) Receive(int timeout)
         {
-            
-            Byte[] bytes = new Byte[256];
-            // Get a stream object for reading and writing
-            NetworkStream stream = Client.GetStream();
-            int i;
-
-            // Loop to receive all the data sent by the client.
-            while((i = stream.Read(bytes, 0, bytes.Length))!=0)
-            { 
-                // meh not sure
-            }
-
+            var bytes = ReceiveBytes(Client);
             return (bytes, 0);
         }
 
-        public int Send(byte[] bytes, int timeout)
+        public async Task<int> Send(byte[] bytes, int timeout)
         {
-            throw new NotImplementedException();
+            NetworkStream stream = Client.GetStream();
+            Task writeTask = stream.WriteAsync(bytes, 0, bytes.Length);
+            await writeTask;
+            return writeTask.IsCompletedSuccessfully ? 0 : 1;
         }
-
         public List<string> HardwareIds { get; set; }
         public int ReadBufferSize { get; set; }
+
+        public static bool IsADBInstalled()
+        {
+            return true;
+        }
     }
     
     public interface IAndroidDevice
@@ -124,7 +117,7 @@ namespace AndroidUSBTest
         void Configure(IAndroidDevice device); // eg put in accessory mode
         bool IsDeviceConfigured();
         (byte[] bytes, int errorCode) Receive(int timeout);
-        int Send(byte[] bytes, int timeout);
+        Task<int> Send(byte[] bytes, int timeout);
         List<string> HardwareIds { get; set; }
         int ReadBufferSize { get; set; }
     }
