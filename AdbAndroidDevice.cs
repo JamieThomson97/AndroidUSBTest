@@ -14,6 +14,7 @@ namespace AndroidUSBTest
         private const int Port = 6000;
         private static readonly IPAddress LocalAddr = IPAddress.Parse("127.0.0.1");
         private static readonly TcpListener Server = new TcpListener(LocalAddr, Port);
+        private NetworkStream Stream;
 
         public static List<IAndroidDevice> GetAdbAndroidDevices()
         {
@@ -31,7 +32,7 @@ namespace AndroidUSBTest
                 TcpClient client = Server.AcceptTcpClient();
                 Debug.WriteLine("Made ADB connection");
 
-                byte[] bytes = ReceiveBytes(client);
+                byte[] bytes = ReceiveBytes(client.GetStream());
 
                 bool isCamoDevice = false;
                 var data = Encoding.ASCII.GetString(bytes, 0, bytes.Length);
@@ -56,10 +57,9 @@ namespace AndroidUSBTest
             }
         }
 
-        private static byte[] ReceiveBytes(TcpClient client)
+        private static byte[] ReceiveBytes(NetworkStream stream)
         {
             byte[] bytes = new byte[256];
-            NetworkStream stream = client.GetStream();
             stream.Read(bytes, 0, bytes.Length);
             
             return bytes;
@@ -71,6 +71,7 @@ namespace AndroidUSBTest
         {
             Client = client;
             HardwareIds = hardWareIds;
+            Stream = client.GetStream();
         }
         public void Configure(IAndroidDevice device)
         {
@@ -84,17 +85,17 @@ namespace AndroidUSBTest
 
         public (byte[] bytes, int errorCode) Receive(int timeout)
         {
-            var bytes = ReceiveBytes(Client);
+            var bytes = ReceiveBytes(Stream);
             return (bytes, 0);
         }
 
         public async Task<int> Send(byte[] bytes, int timeout)
         {
-            NetworkStream stream = Client.GetStream();
-            Task writeTask = stream.WriteAsync(bytes, 0, bytes.Length);
+            Task writeTask = Stream.WriteAsync(bytes, 0, bytes.Length);
             await writeTask;
             return writeTask.IsCompletedSuccessfully ? 0 : 1;
         }
+
         public List<string> HardwareIds { get; set; }
         public int ReadBufferSize { get; set; }
 
