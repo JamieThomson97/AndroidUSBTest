@@ -26,8 +26,8 @@ namespace AndroidUSBTest
                     while (true)
                     {
                         messageIteration++;
-                        byte[] bytes = Encoding.ASCII.GetBytes("Test message to Android device: " + messageIteration);
-                        var result = device.Send(bytes, 5 * 1000).Result;
+                        byte[] bytes = Encoding.Unicode.GetBytes("Test message to Android device: " + messageIteration);
+                        var result = device.Send(bytes, 2 * 1000);
                         Debug.WriteLine("Sent message " + messageIteration);
                         Thread.Sleep(2 * 1000);
                     }

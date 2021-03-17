@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
@@ -27,7 +27,7 @@ namespace AndroidUSBTest
                 Debug.WriteLine("Waiting for ADB connection");
 
                 // Buffer for reading data
-                
+
                 List<IAndroidDevice> devices = new List<IAndroidDevice>();
                 TcpClient client = Server.AcceptTcpClient();
                 Debug.WriteLine("Made ADB connection");
@@ -37,7 +37,7 @@ namespace AndroidUSBTest
                 bool isCamoDevice = false;
                 var data = Encoding.ASCII.GetString(bytes, 0, bytes.Length);
                 Debug.WriteLine(data);
-                
+
                 string howDoWeKnow = "idk";
                 if (data == howDoWeKnow || true)
                     isCamoDevice = true;
@@ -89,11 +89,18 @@ namespace AndroidUSBTest
             return (bytes, 0);
         }
 
-        public async Task<int> Send(byte[] bytes, int timeout)
+        public async Task<int> SendAsync(byte[] bytes, int timeout)
         {
             Task writeTask = Stream.WriteAsync(bytes, 0, bytes.Length);
             await writeTask;
             return writeTask.IsCompletedSuccessfully ? 0 : 1;
+        }
+        
+        public int Send(byte[] bytes, int timeout)
+        {
+            Stream.Flush();
+            Stream.Write(bytes, 0, bytes.Length);
+            return 0;
         }
 
         public List<string> HardwareIds { get; set; }
@@ -118,7 +125,8 @@ namespace AndroidUSBTest
         void Configure(IAndroidDevice device); // eg put in accessory mode
         bool IsDeviceConfigured();
         (byte[] bytes, int errorCode) Receive(int timeout);
-        Task<int> Send(byte[] bytes, int timeout);
+        Task<int> SendAsync(byte[] bytes, int timeout);
+        int Send(byte[] bytes, int timeout);
         List<string> HardwareIds { get; set; }
         int ReadBufferSize { get; set; }
     }
